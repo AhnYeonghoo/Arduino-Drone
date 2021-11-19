@@ -23,20 +23,47 @@ unsigned char throttle = 0x50;
 unsigned char operationBit = 0x01;
 unsigned char checkSum = 0x46;
 
+
+/* 요잉(수평 상태로 좌우 회전) */
+void checkYawing() {
+   if (!digitalRead(7)) {
+    Serial.println("Press 7");
+    yawing = 50;
+ 
+  } else if (!digitalRead(8)) {
+    Serial.println("Press 8");
+    yawing = 150;
+  } else {
+    yawing = 100;
+  }
+  
+}
+
+/* 롤링(좌우 회전) 조정 함수 */ 
+void checkRolling() {
+  int analogRolling = analogRead(4);
+  Serial.println(analogRead(4));
+  if (analogRolling > 700) {
+    rolling = 120;
+  } else if (analogRolling < 300) {
+    rolling = 80;
+  } else {
+    rolling = 100; //default 기본값
+  }
+}
+
+
+
 /* 피치(전후진) 조정 함수 */
 void checkPitching() {
-  if (analogRead(5)) {
-    Serial.println("Press Analog 5");
-    pitching += 20;
-    if (pitching > 200) {
-      pitching = 200;
-    }
-  } else if (!analogRead(5)) {
-    Serial.println("Press Analog 5");
-    pitching -= 20;
-    if (pitching < 0) {
-      pitching = 0;
-    }
+  int analogPitching = analogRead(5);
+  Serial.println(analogRead(5));
+  if (analogPitching > 700) {
+     pitching = 120;
+  } else if (analogPitching < 300) {
+     pitching = 80;
+  } else {
+    pitching = 100; // default 기본값 
   }
 }
 
@@ -76,19 +103,35 @@ void check_checkSum() {
  * 기체 조종하는 함수들이 들어있는 함수들 
  */
 void sendCommand() {
+        checkRolling();
         checkThrottle();
+        checkYawing();
         checkPitching();
         check_checkSum();
         
         BT.print("AT+WRITEH000D");   //앞으로 블루투스 통신시 16비트로 보내겠다
 
+
+        if (rolling < 0x10) {
+          BT.print("0"+String(rolling,HEX)); //CheckSum -> 위에서 다 합친 값이랑 실제로 전달받은 값이 일치하는 지 체크.        
+        } else {
+          BT.print(rolling,HEX);
+        }
+
+          
         if (pitching < 0x10) {
           BT.print("0"+String(pitching,HEX)); //CheckSum -> 위에서 다 합친 값이랑 실제로 전달받은 값이 일치하는 지 체크.        
         } else {
           BT.print(pitching,HEX);
         }
 
-     
+
+        if (yawing < 0x10) {
+          BT.print("0"+String(yawing,HEX));
+        } else {
+          BT.print(yawing,HEX);
+        } 
+        
         if (throttle < 0x10) {
           BT.print("0"+String(throttle,HEX));
         } else {
